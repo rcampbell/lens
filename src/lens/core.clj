@@ -45,14 +45,17 @@
         (update-in [:all] merge w->b-mapping)
         (assoc pos b->w-mapping))))
 
-(letfn [(aggregate-vals-into [m to] (assoc m to (-> m vals flatten)))]
+(letfn [(map-vals-to-nil
+         [m to]
+         (assoc m to (zipmap (-> m vals flatten)
+                             (repeat nil))))]
   
   (def ^{:private true}
     dictionary (-> {:prep    ["to" "in" "by" "with" "on"]
                     :article ["the" "a"]
                     :name    ["Rob" "Lucka"]
                     :pronoun ["he" "she" "it" "these" "those" "that"]}
-                   (aggregate-vals-into :all)
+                   (map-vals-to-nil :all)
                    (parse :noun "index.noun")
                    (parse :verb "index.verb")
                    (parse :adj  "index.adj")
