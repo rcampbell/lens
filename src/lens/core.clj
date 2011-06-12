@@ -36,7 +36,7 @@
 
 (defn- parse [{existing :all, :as aggregate} pos file]
   (let [raw-words    (set (read-words file))
-        duplicates   (intersection (set existing) raw-words)
+        duplicates   (intersection (set (keys existing)) raw-words)
         unique-words (difference raw-words duplicates)
         sorted-words (sort unique-words)
         w->b-mapping (words->bytes sorted-words)
@@ -45,7 +45,7 @@
         (update-in [:all] merge w->b-mapping)
         (assoc pos b->w-mapping))))
 
-(letfn [(map-vals-to-nil
+(letfn [(map-vals-to-nil-in
          [m to]
          (assoc m to (zipmap (-> m vals flatten)
                              (repeat nil))))]
@@ -55,7 +55,7 @@
                     :article ["the" "a"]
                     :name    ["Rob" "Lucka"]
                     :pronoun ["he" "she" "it" "these" "those" "that"]}
-                   (map-vals-to-nil :all)
+                   (map-vals-to-nil-in :all)
                    (parse :noun "index.noun")
                    (parse :verb "index.verb")
                    (parse :adj  "index.adj")
@@ -71,7 +71,6 @@
       [(pos->word pos) bytes])))
 
 (defn- get-byte [word]
-  "Always consumes the first word, returning a byte if possible."
   (get-in dictionary [:all word]))
 
 
