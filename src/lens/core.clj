@@ -5,34 +5,50 @@
         [clojure.contrib.duck-streams :only (read-lines)])
   (:import [java.io File]))
 
+;;;; TODO
+;;;; simplify
+;;;; encode/decode multimethod w/type dispatch
+;;;; generic, swappable weighting system (markov, word freq)
+;;;; actually use a byte type for the word mappings
+;;;; simplify parse, maybe taking advantage of merge's overwrite
+
 ;;;; Word Mappings
 
 (defn- read-words [file]
+  "Reads a WordNet resource file from the classpath
+   returning a seq of simple words."
   (for [line (read-lines (resource file))
-        :when (and (Character/isLetter (first line))
-                   (not (.contains line "_"))
+        :when (and (Character/isLetter (first line)) ; skip header
+                   (not (.contains line "_"))        ; skip collocations
                    (not (.contains line "-"))
-                   (not (.contains line ".")))]
+                   (not (.contains line ".")))]      ; skip acronyms
     (first (.split line " "))))
 
-(let [num-slices 256
-      slice-size (fn [words]
-                   (quot (count words)
-                         num-slices))
-      truncate   (fn [words]
-                   (take (* (slice-size words)
-                            num-slices)
-                         words))]
+;;; Below we partition using a byte range, but it should be noted
+;;; that the actual numeric instances are int for simpler fn interop.
+
+(let [num-partitions (Math/pow 2 Byte/SIZE)
+      
+      partition-size (fn [words]
+                       (quot (count words)
+                             num-partitions))
+      
+      truncate-extra (fn [words]
+                       (take (* (partition-size words)
+                                num-partitions)
+                             words))]
 
   (defn- words->bytes [words]
-    (zipmap (truncate words)
-            (mapcat (partial repeat (slice-size words))
+    "Maps a word to its equivalent byte value."
+    (zipmap (truncate-extra words)
+            (mapcat (partial repeat (partition-size words))
                     (iterate inc Byte/MIN_VALUE))))
 
   (defn- bytes->words [words]
+    "Maps a byte value to its equivalent coll of words."
     (zipmap (iterate inc Byte/MIN_VALUE)
-            (partition (slice-size words)
-                       (truncate words)))))
+            (partition (partition-size words)
+                       (truncate-extra words))))) 
 
 (defn- parse [{existing :all, :as aggregate} pos file]
   (let [raw-words    (set (read-words file))
@@ -94,7 +110,7 @@
                 (vector? phrase) (mapcat generate phrase)
                 (grammar phrase) (generate (grammar phrase))
                 :else            [phrase])
-          (filter identity))))
+          (filter identity)))) ; remove nil terminals
 
 
 ;;;; Encoding / Decoding
